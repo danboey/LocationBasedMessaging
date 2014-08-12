@@ -3,7 +3,7 @@ from tastypie.authorization import Authorization
 from tastypie.authentication import Authentication
 from customauth import CustAuthentication
 from mongoengine.django.auth import User
-from models import Message, Person, EmailRecommendations
+from models import Message, Person, EmailRecommendations, Friends
 from social.apps.django_app.utils import load_strategy
 from social.backends.utils import load_backends
 from tastypie.exceptions import NotRegistered, BadRequest, Unauthorized
@@ -182,12 +182,12 @@ class SocialSignUpResource(resources.MongoEngineResource):
         strategy = load_strategy(backend='facebook')
         try:
             user = strategy.backend.do_auth(access_token)
-            username = user['id']
-            Person.objects(id=username).update(set__access_token=access_token)
+            user_id = user['id']
+            Person.objects(id=user_id).update(set__access_token=access_token)
         except:
             raise BadRequest("Error [1] authenticating user with this provider")
         if user and user.is_active:
-            get_friends(user)
+            get_friends(user, user_id)
             bundle.obj = user
             print "END"
             return bundle
@@ -219,5 +219,26 @@ class EmailRecommendationResource(resources.MongoEngineResource):
         
     def alter_list_data_to_serialize(self, request, data_dict): 
         return delete_meta(self, data_dict, dict)
+        
+        
+class FriendsResource(resources.MongoEngineResource):
+
+    class Meta:
+        queryset = Friends.objects.all()
+        allowed_methods = ['get']
+        fields = ['friends']
+        authentication = CustAuthentication()
+        authorization = Authorization()
+        resource_name = "friends"
+        
+    def obj_get_list(self, bundle, **kwargs):
+        user = bundle.request.GET.get('id')
+        friends = Friends.objects(user_id=user)
+        return friends
+            
+    def alter_list_data_to_serialize(self, request, data_dict): 
+        return delete_meta(self, data_dict, dict)
+            
+            
             
         

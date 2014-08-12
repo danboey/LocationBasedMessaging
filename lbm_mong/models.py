@@ -42,9 +42,10 @@ class EmailRecommendations(Document):
 
 signals.post_save.connect(send_email, sender=EmailRecommendations)
 
-class Test(Document):
+class Friends(Document):
     uid = StringField(default='')
     friends = ListField(default=[])
+    user_id = StringField(default='')
 
 
 

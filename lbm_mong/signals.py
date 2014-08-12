@@ -33,8 +33,8 @@ def generate_random_token(sender, document, **kwargs):
 def send_email(sender, document, **kwargs):
     recommendation_email(document)    
     
-def get_friends(user):
-    from lbm_mong.models import Person, Test
+def get_friends(user, user_id):
+    from lbm_mong.models import Person, Friends
     name = Person.objects(username=str(user))
     for data in name:
         for key in data:
@@ -47,8 +47,8 @@ def get_friends(user):
     request = urllib2.Request(url)
     friends = json.loads(urllib2.urlopen(request).read()).get('data')
     print friends
-    if not Test.objects(uid=uid):
-        new = Test(uid=uid, friends=friends)
+    if not Friends.objects(uid=uid):
+        new = Friends(uid=uid, friends=friends, user_id=str(user_id))
         new.save()
 
 
