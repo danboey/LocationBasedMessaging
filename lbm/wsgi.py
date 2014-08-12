@@ -8,7 +8,7 @@ https://docs.djangoproject.com/en/1.6/howto/deployment/wsgi/
 """
 
 import os, sys    
-sys.path.append(' /home/dan-ubuntu/Desktop/lbm_key_v3/lbm')
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bookings.settings")
+sys.path.append(' /home/ubuntu/myproject/lbm')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lbm.settings")
 from django.core.wsgi import get_wsgi_application
 application = get_wsgi_application()

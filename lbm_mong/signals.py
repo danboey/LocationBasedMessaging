@@ -4,6 +4,8 @@ import json
 import random
 import string
 import binascii
+import urllib2
+import social_auth
 
 
 '''Send push notification after message is saved, by triggering signal. Not yet implemented.
@@ -30,6 +32,24 @@ def generate_random_token(sender, document, **kwargs):
 '''Allows user to send email recommending application to friends'''    
 def send_email(sender, document, **kwargs):
     recommendation_email(document)    
-        
-        
+    
+def get_friends(user):
+    from lbm_mong.models import Person, Test
+    name = Person.objects(username=str(user))
+    for data in name:
+        for key in data:
+            if key == 'access_token':
+                access_token = data[key]
+            if key == 'uid':
+                uid = data[key]
+    url = u"https://graph.facebook.com/%s/friends?access_token=%s" % (uid, access_token)
+    print url
+    request = urllib2.Request(url)
+    friends = json.loads(urllib2.urlopen(request).read()).get('data')
+    print friends
+    if not Test.objects(uid=uid):
+        new = Test(uid=uid, friends=friends)
+        new.save()
+
+
 

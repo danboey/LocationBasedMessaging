@@ -3,11 +3,13 @@ from tastypie.authorization import Authorization
 from tastypie.authentication import Authentication
 from customauth import CustAuthentication
 from mongoengine.django.auth import User
-from social_auth.models import UserSocialAuth
 from models import Message, Person, EmailRecommendations
 from social.apps.django_app.utils import load_strategy
 from social.backends.utils import load_backends
 from tastypie.exceptions import NotRegistered, BadRequest, Unauthorized
+from signals import get_friends
+import urllib2
+import json
 
 
 def delete_meta(self, data_dict, dict):
@@ -149,53 +151,57 @@ class PullMessageResource(resources.MongoEngineResource):
     def obj_get(self, bundle, request=None, **kwargs):
         user = bundle.request.GET.get('username')
         msg_id = kwargs['pk']
-        msg = self.get_object_list(request).filter(id=msg_id, received=False)
+        msg = self.get_object_list(request).filter(id=msg_id, recipient = user, received=False)
         try:
             if len(msg) == 0:
                 pass
             return msg[0]
         except:
-            raise BadRequest("Either message already received by recipient or msg id does not exist")
+            raise BadRequest("Either message already received by recipient, msg id does not exist or you are not the intended recipient for this message")
 
         
     def alter_list_data_to_serialize(self, request, data_dict): 
         return delete_meta(self, data_dict, dict)
- 
+       
                 
 
 '''Authenticate users via facebook using python-social-auth'''
 class SocialSignUpResource(resources.MongoEngineResource):
-
+    
     class Meta:
         queryset = Person.objects.all()
         allowed_methods = ['post']
         authentication = Authentication()
         authorization = Authorization()
         resource_name = "users"
+        fields = ['id', 'username', 'api_token']
         always_return_data = True
 
     def obj_create(self, bundle, request=None, **kwargs):
-    
         access_token = bundle.data['access_token']
         strategy = load_strategy(backend='facebook')
         try:
             user = strategy.backend.do_auth(access_token)
+            username = user['id']
+            Person.objects(id=username).update(set__access_token=access_token)
         except:
             raise BadRequest("Error [1] authenticating user with this provider")
         if user and user.is_active:
-            print "ACTIVE USER"
+            get_friends(user)
             bundle.obj = user
+            print "END"
             return bundle
         else:
             raise BadRequest("Error [2] authenticating user with this provider")
-        
+                       
+  
 
 class EmailRecommendationResource(resources.MongoEngineResource):
     
     class Meta:
         queryset = EmailRecommendations.objects.all()
         allowed_methods = ['get', 'post']
-        fields = ['email']
+        fields = ['email', 'username']
         authentication = CustAuthentication()
         authorization = Authorization()
         resource_name = "recommend"
@@ -214,6 +220,4 @@ class EmailRecommendationResource(resources.MongoEngineResource):
     def alter_list_data_to_serialize(self, request, data_dict): 
         return delete_meta(self, data_dict, dict)
             
-
-        
         
