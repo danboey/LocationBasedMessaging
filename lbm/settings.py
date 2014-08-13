@@ -99,6 +99,16 @@ SOCIAL_AUTH_USER_MODEL = 'lbm_mong.models.Person'
 
 SESSION_ENGINE = 'mongoengine.django.sessions'
 
+#PUSH NOTIFICATION SETTINGS
+
+'''PYAPNS_CONFIG = {
+  'HOST': 'http://localhost:8077/',
+  'TIMEOUT': 10,
+  'INITIAL': [                      
+    ('LocationBasedMessagingApp', '/path/to/cert/apscert.pem', 'sandbox'),
+  ]
+}'''
+
 MONGO_DATABASE_NAME = 'lbm_mongo_key'
 
 from mongoengine import connect

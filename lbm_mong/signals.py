@@ -35,6 +35,20 @@ def send_email(sender, document, **kwargs):
     
 def get_friends(user, user_id):
     from lbm_mong.models import Person, Friends
+    name = Person.objects.get(username=str(user))
+    access_token, uid = name.access_token, name.uid 
+    url = u"https://graph.facebook.com/%s/friends?access_token=%s" % (uid, access_token)
+    request = urllib2.Request(url)
+    friends = json.loads(urllib2.urlopen(request).read()).get('data')
+    if not Friends.objects(uid=uid):
+        new = Friends(uid=uid, friends=friends, user_id=str(user_id))
+        new.save()
+    else:
+        Friends.objects(uid=uid).update(set__friends=friends)
+        
+                        
+
+    '''from lbm_mong.models import Person, Friends
     name = Person.objects(username=str(user))
     for data in name:
         for key in data:
@@ -50,6 +64,16 @@ def get_friends(user, user_id):
     if not Friends.objects(uid=uid):
         new = Friends(uid=uid, friends=friends, user_id=str(user_id))
         new.save()
+    else:
+        Friends.objects(uid=uid).update(set__friends=friends)
+    add_me_to_list = {"name" : "%s", "uid" : "%s%"} % (
+    for friend in friends:
+        friend_uid = friend['id']
+        friend = Person.objects.get(uid=friend_uid)
+        friend_id = str(friend.id)
+        friends_list = Friends.objects.get(user_id=friend_id).update(set__friends=friends.append({
+        print friends_list.friends'''
+        
 
 
 

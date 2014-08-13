@@ -232,8 +232,12 @@ class FriendsResource(resources.MongoEngineResource):
         resource_name = "friends"
         
     def obj_get_list(self, bundle, **kwargs):
-        user = bundle.request.GET.get('id')
-        friends = Friends.objects(user_id=user)
+        '''update friends list first'''
+        username = bundle.request.GET.get('username')
+        user = Person.objects.get(username=username)
+        user_uid = user.uid
+        get_friends(username, user_uid)
+        friends = Friends.objects(uid=user_uid)
         return friends
             
     def alter_list_data_to_serialize(self, request, data_dict): 
