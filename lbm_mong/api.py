@@ -44,7 +44,7 @@ class MessageResource(resources.MongoEngineResource):
     def obj_update(self, bundle, **kwargs):
         user = bundle.request.GET.get('username')
         intended_recipient = bundle.obj.recipient
-        '''Check if recipient is a registered user'''
+        '''Check if user is the intended recipient of the message'''
         if user == intended_recipient:
             return self.obj_create(bundle, **kwargs)
         raise BadRequest("You are not the intended recipient for this message")   
@@ -75,6 +75,8 @@ class SentMessageResource(resources.MongoEngineResource):
         always_return_data = True       
 
     def obj_get_list(self, bundle, **kwargs):
+        '''Depending on URL params, user can GET list of all sent msgs or only msgs 
+           that have either been/not been received'''
         user = bundle.request.GET.get('username')
         if bundle.request.GET.get('received') == "true":
             msgs = Message.objects(username=user, received=True)
@@ -111,6 +113,8 @@ class ReceivedMessageResource(resources.MongoEngineResource):
         always_return_data = True       
 
     def obj_get_list(self, bundle, **kwargs):
+        '''Only returns msgs that have actually been received by the user (as opposed to
+           msgs sent to the client app, ie. msgs stored locally but not yet seen by user)'''
         user = bundle.request.GET.get('username')
         msgs = Message.objects(recipient=user, received=True)
         return msgs
@@ -124,16 +128,17 @@ class ReceivedMessageResource(resources.MongoEngineResource):
                 pass
             return msg[0]
         except:
-            raise BadRequest("The message does not exist or has not yet been received")
+            raise BadRequest("The message does not exist or has not yet been received by the user")
              
         
     def alter_list_data_to_serialize(self, request, data_dict): 
         return delete_meta(self, data_dict, dict)
+      
+      
         
-        
-        
+'''When a push notification is received the client app should use this end-point to GET the msg'''          
 class PullMessageResource(resources.MongoEngineResource):
-        
+      
     class Meta:
         queryset = Message.objects.all()
         resource_name = 'pull_msg'
@@ -187,6 +192,7 @@ class SocialSignUpResource(resources.MongoEngineResource):
         except:
             raise BadRequest("Error [1] authenticating user with this provider")
         if user and user.is_active:
+            '''Populates friends list via call to facebook API'''
             get_friends(user, user_id)
             bundle.obj = user
             print "END"
@@ -196,6 +202,7 @@ class SocialSignUpResource(resources.MongoEngineResource):
                        
   
 
+'''End-point for sending email recommendation to user's friends, email address must be supplied'''
 class EmailRecommendationResource(resources.MongoEngineResource):
     
     class Meta:
@@ -221,6 +228,7 @@ class EmailRecommendationResource(resources.MongoEngineResource):
         return delete_meta(self, data_dict, dict)
         
         
+'''Endpoint for accessing list of user's friends who are also registered to use the app'''        
 class FriendsResource(resources.MongoEngineResource):
 
     class Meta:
