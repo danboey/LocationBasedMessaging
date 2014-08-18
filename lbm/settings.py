@@ -25,7 +25,7 @@ DEBUG = True
 
 TEMPLATE_DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -97,10 +97,13 @@ SOCIAL_AUTH_FACEBOOK_SCOPE = [
 
 SOCIAL_AUTH_USER_MODEL = 'lbm_mong.models.Person'
 
+SOCIAL_AUTH_FACEBOOK_KEY = '302871443207881'
+
+SOCIAL_AUTH_FACEBOOK_SECRET = 'b03f9ab5562b287fc7fe9aa704cbc2aa'
+
 SESSION_ENGINE = 'mongoengine.django.sessions'
 
 #PUSH NOTIFICATION SETTINGS
-
 '''PYAPNS_CONFIG = {
   'HOST': 'http://localhost:8077/',
   'TIMEOUT': 10,
@@ -109,7 +112,7 @@ SESSION_ENGINE = 'mongoengine.django.sessions'
   ]
 }'''
 
-MONGO_DATABASE_NAME = 'lbm_mongo_key'
+MONGO_DATABASE_NAME = 'lbm_mongo_keyXXX'
 
 from mongoengine import connect
 connect(MONGO_DATABASE_NAME)

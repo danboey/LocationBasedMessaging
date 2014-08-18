@@ -12,13 +12,13 @@ def recommendation_email(document):
             <head></head>
             <body>
                 <p>Hello!</p>
-                <p>%s has recommened you try the Location Based Messaging iOS App!<br>
+                <p>%s %s has recommened you try the Location Based Messaging iOS App!<br>
                    Click on the link below to get started</p>
                 <a href="www.google.com">Location Based Messaging</a>
                 </p>
             </body>
         </html>
-        """%document.username
+        """%(document.first_name, document.last_name)
     part2 = MIMEText(html_msg, 'html')
     msg1 = MIMEMultipart('alternative')
     msg1['Subject'] = "Join Location Based Messaging iOS App!"
