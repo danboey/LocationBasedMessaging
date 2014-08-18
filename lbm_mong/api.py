@@ -41,13 +41,8 @@ class MessageResource(resources.MongoEngineResource):
         return super(MessageResource, self).obj_create(bundle, **kwargs)
             
     def obj_update(self, bundle, **kwargs):
-<<<<<<< HEAD
         user = bundle.request.GET.get('user_id')
         intended_recipient = bundle.obj.recipient_id
-=======
-        user = bundle.request.GET.get('username')
-        intended_recipient = bundle.obj.recipient
->>>>>>> a269b7f0c8344c430587c3a20316803192e93156
         '''Check if user is the intended recipient of the message'''
         if user == intended_recipient:
             return self.obj_create(bundle, **kwargs)
@@ -79,13 +74,9 @@ class SentMessageResource(resources.MongoEngineResource):
         always_return_data = True       
 
     def obj_get_list(self, bundle, **kwargs):
-<<<<<<< HEAD
-        user = bundle.request.GET.get('user_id')
-=======
         '''Depending on URL params, user can GET list of all sent msgs or only msgs 
            that have either been/not been received'''
-        user = bundle.request.GET.get('username')
->>>>>>> a269b7f0c8344c430587c3a20316803192e93156
+        user = bundle.request.GET.get('user_id')
         if bundle.request.GET.get('received') == "true":
             msgs = Message.objects(user_id=user, received=True)
         elif bundle.request.GET.get('received') == "false":
@@ -121,15 +112,10 @@ class ReceivedMessageResource(resources.MongoEngineResource):
         always_return_data = True       
 
     def obj_get_list(self, bundle, **kwargs):
-<<<<<<< HEAD
-        user = bundle.request.GET.get('user_id')
-        msgs = Message.objects(recipient_id=user, received=True)
-=======
         '''Only returns msgs that have actually been received by the user (as opposed to
            msgs sent to the client app, ie. msgs stored locally but not yet seen by user)'''
-        user = bundle.request.GET.get('username')
-        msgs = Message.objects(recipient=user, received=True)
->>>>>>> a269b7f0c8344c430587c3a20316803192e93156
+        user = bundle.request.GET.get('user_id')
+        msgs = Message.objects(recipient_id=user, received=True)
         return msgs
         
     def obj_get(self, bundle, request=None, **kwargs):
@@ -144,15 +130,10 @@ class ReceivedMessageResource(resources.MongoEngineResource):
             raise BadRequest("The message does not exist or has not yet been received by the user")
              
         
-<<<<<<< HEAD
     '''def alter_list_data_to_serialize(self, request, data_dict): 
         return delete_meta(self, data_dict, dict)'''
-=======
-    def alter_list_data_to_serialize(self, request, data_dict): 
-        return delete_meta(self, data_dict, dict)
-      
-      
->>>>>>> a269b7f0c8344c430587c3a20316803192e93156
+        
+        
         
 '''When a push notification is received the client app should use this end-point to GET the msg'''          
 class PullMessageResource(resources.MongoEngineResource):
