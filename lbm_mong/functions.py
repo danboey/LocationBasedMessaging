@@ -1,14 +1,25 @@
-from lbm_mong.models import Person, Friends
+from lbm_mong.models import Person, Friends, Message
 from tastypie.exceptions import BadRequest
+from datetime import datetime
 import urllib2
 import json
 
-def check_user_id(bundle, **kwargs):
+'''Authorization for sending message'''
+def check_user_id_sending(bundle, **kwargs):
     user = bundle.request.GET.get('user_id')
     sender = bundle.data['user_id']
     if user == sender:
         return True
     return False
+    
+'''Authorisation - checks that requesting user is the recipient of the message'''
+def check_user_id_updating(bundle, **kwargs):
+    user = bundle.request.GET.get('user_id')
+    recipient = bundle.obj.recipient_id
+    if user == recipient:
+        return True
+    return False
+    
     
 def check_receiver(bundle, **kwargs):
     receiver = bundle.data['recipient_id']
@@ -30,6 +41,21 @@ def check_bundle_data(bundle, **kwargs):
         return
     except:
         raise BadRequest("Required field(s) missing")
+        
+
+'''When client app receives the message, the app should send a patch to update the 'pushed' field to true.
+   When in range of location and client app notifies user of message, app should send PATCH to update
+   received field to true. date_received field is then set to current datetime.'''
+def set_update(bundle, **kwargs):
+    msg_id = bundle.obj.id
+    '''when received is in request data'''
+    if bundle.data['received'] == True:
+        Message.objects.get(id=msg_id).update(set__received=True)
+        Message.objects.get(id=msg_id).update(set__date_received=datetime.now())
+    else:
+        Message.objects.get(id=msg_id).update(set__pushed=True)
+    return bundle
+
     
 def get_friends(user):
     name = Person.objects.get(username=str(user))

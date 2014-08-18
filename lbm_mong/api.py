@@ -8,7 +8,7 @@ from models import Message, Person, EmailRecommendations, Friends
 from social.apps.django_app.utils import load_strategy
 from social.backends.utils import load_backends
 from tastypie.exceptions import NotRegistered, BadRequest, Unauthorized
-from functions import check_user_id, check_receiver, get_friends, check_bundle_data
+from functions import check_user_id_sending, check_user_id_updating, check_receiver, get_friends, check_bundle_data, set_update
 import urllib2
 import json
 
@@ -30,23 +30,20 @@ class MessageResource(resources.MongoEngineResource):
         authentication = CustAuthentication()
         authorization = Authorization()
         always_return_data = True
-        allowed_update_fields = ['received']
+        allowed_update_fields = ['received', 'pushed', 'date_received']
     
     def obj_create(self, bundle, **kwargs):
         check_bundle_data(bundle)
         if not check_receiver(bundle):
             raise BadRequest("Recipient ID not valid or not in friends list")
-        if not check_user_id(bundle):
+        if not check_user_id_sending(bundle):
             raise BadRequest("Unauthorised - 'user_id' in payload incorrect")
         return super(MessageResource, self).obj_create(bundle, **kwargs)
-            
-    def obj_update(self, bundle, **kwargs):
-        user = bundle.request.GET.get('user_id')
-        intended_recipient = bundle.obj.recipient_id
-        '''Check if user is the intended recipient of the message'''
-        if user == intended_recipient:
-            return self.obj_create(bundle, **kwargs)
-        raise BadRequest("Unauthorised")   
+        
+    def obj_update(self, bundle, request = None, **kwargs):
+        if not check_user_id_updating(bundle, **kwargs):
+            raise BadRequest("CANNOT LAH")
+        set_update(bundle)
             
     '''PATCH request - to change 'received' boolean field from false to true once the user
        actually opens the message. Only 'received' field can be updated'''        
@@ -96,9 +93,6 @@ class SentMessageResource(resources.MongoEngineResource):
         except:
             raise BadRequest("The message does not exist")
         
-    '''def alter_list_data_to_serialize(self, request, data_dict): 
-        return delete_meta(self, data_dict, dict)'''
-        
         
 class ReceivedMessageResource(resources.MongoEngineResource):
         
@@ -129,10 +123,6 @@ class ReceivedMessageResource(resources.MongoEngineResource):
         except:
             raise BadRequest("The message does not exist or has not yet been received by the user")
              
-        
-    '''def alter_list_data_to_serialize(self, request, data_dict): 
-        return delete_meta(self, data_dict, dict)'''
-        
         
         
 '''When a push notification is received the client app should use this end-point to GET the msg'''          

@@ -18,7 +18,7 @@ class Message(Document):
     }
 
     def __unicode__(self):
-        return self.username
+        return self.user_id
 
     def save(self, *args, **kwargs):
         return super(Message, self).save(*args, **kwargs)
