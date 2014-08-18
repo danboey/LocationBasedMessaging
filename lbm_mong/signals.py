@@ -34,12 +34,4 @@ def send_email(sender, document, **kwargs):
     if not Person.objects(email=email):
         recommendation_email(document)
     else:
-<<<<<<< HEAD
         raise BadRequest("%s is already a registered user!") % email
-
-
-=======
-        Friends.objects(uid=uid).update(set__friends=friends)
-        
-                        
->>>>>>> a269b7f0c8344c430587c3a20316803192e93156
