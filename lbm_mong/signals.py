@@ -19,7 +19,7 @@ def send_push(sender, document, **kwargs):
 
 '''Generates random token of variable length (between 20 and 30 characters),
    including upper/lower case and digits. Stored in db as user's API access token.
-   Token is required (along with username) for subsequent calls to the API.'''
+   Token is required (along with username & ID) for subsequent calls to the API.'''
 def generate_random_token(sender, document, **kwargs):
     size = random.randrange(20, 30, 1)
     character_set = string.ascii_uppercase + string.ascii_lowercase + string.digits 
@@ -34,6 +34,12 @@ def send_email(sender, document, **kwargs):
     if not Person.objects(email=email):
         recommendation_email(document)
     else:
+<<<<<<< HEAD
         raise BadRequest("%s is already a registered user!") % email
 
 
+=======
+        Friends.objects(uid=uid).update(set__friends=friends)
+        
+                        
+>>>>>>> a269b7f0c8344c430587c3a20316803192e93156
