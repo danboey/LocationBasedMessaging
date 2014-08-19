@@ -7,17 +7,10 @@ from mongoengine.django.auth import User
 from models import Message, Person, EmailRecommendations, Friends
 from social.apps.django_app.utils import load_strategy
 from social.backends.utils import load_backends
-from tastypie.exceptions import NotRegistered, BadRequest, Unauthorized
-from functions import check_user_id_sending, check_user_id_updating, check_receiver, get_friends, check_bundle_data, set_update
+from tastypie.exceptions import NotRegistered, BadRequest, Unauthorized, NotFound
+from functions import check_user_id_sending, check_user_id_updating, check_receiver, get_friends, check_bundle_data, delete_meta, set_update
 import urllib2
 import json
-
-
-def delete_meta(self, data_dict, dict):
-    if isinstance(data_dict, dict): 
-        if 'meta' in data_dict: 
-            del(data_dict['meta']) 
-        return data_dict 
         
         
 class MessageResource(resources.MongoEngineResource):
@@ -30,7 +23,7 @@ class MessageResource(resources.MongoEngineResource):
         authentication = CustAuthentication()
         authorization = Authorization()
         always_return_data = True
-        allowed_update_fields = ['received', 'pushed', 'date_received']
+        allowed_update_fields = ['received', 'pushed']
     
     def obj_create(self, bundle, **kwargs):
         check_bundle_data(bundle)
@@ -41,15 +34,19 @@ class MessageResource(resources.MongoEngineResource):
         return super(MessageResource, self).obj_create(bundle, **kwargs)
         
     def obj_update(self, bundle, request = None, **kwargs):
+        #check that requesting user is the recipient of the message
         if not check_user_id_updating(bundle, **kwargs):
-            raise BadRequest("CANNOT LAH")
+            raise BadRequest("Unauthorised")
+        #check that update values are valid
+        if bundle.data['received'] != True and bundle.data['pushed'] != True:
+            raise BadRequest("Invalid - received/pushed fields can only be updated to 'true'")
         set_update(bundle)
             
     '''PATCH request - to change 'received' boolean field from false to true once the user
        actually opens the message. Only 'received' field can be updated'''        
     def update_in_place(self, request, original_bundle, new_data):
         if set(new_data.keys()) - set(self._meta.allowed_update_fields):
-            raise BadRequest("Only the 'received' field can be updated")
+            raise BadRequest("Only the 'received' and 'pushed' boolean fields can be updated")
         return super(MessageResource, self).update_in_place(request, original_bundle, new_data)  
         
     '''Exclude 'meta' information in response'''    
@@ -64,11 +61,12 @@ class SentMessageResource(resources.MongoEngineResource):
     class Meta:
         queryset = Message.objects.all()
         resource_name = 'sent_messages'
-        fields = ['id', 'content', 'recipient_id', 'date_sent', 'received']
+        fields = ['id', 'content', 'recipient_id', 'date_sent', 'received', 'date_received']
         allowed_methods = ['get']
         authentication = CustAuthentication()
         authorization = Authorization()
-        always_return_data = True       
+        always_return_data = True
+        #max_limit = None       
 
     def obj_get_list(self, bundle, **kwargs):
         '''Depending on URL params, user can GET list of all sent msgs or only msgs 
@@ -99,7 +97,7 @@ class ReceivedMessageResource(resources.MongoEngineResource):
     class Meta:
         queryset = Message.objects.all()
         resource_name = 'received_messages'
-        fields = ['id', 'content', 'user_id', 'date_sent', 'recipient_id', 'received']
+        fields = ['id', 'content', 'user_id', 'date_sent', 'date_received']
         allowed_methods = ['get']
         authentication = CustAuthentication()
         authorization = Authorization()

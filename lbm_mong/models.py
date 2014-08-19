@@ -9,8 +9,8 @@ class Message(Document):
     recipient_id = StringField(required=True)
     content = StringField(required=True)
     date_sent = DateTimeField(default=datetime.now)
-    pushed = BooleanField(default=False)
-    received = BooleanField(default=False)
+    pushed = BooleanField(default=False, required=True)
+    received = BooleanField(default=False,required=True)
     date_received = DateTimeField(required=False)
     location = PointField(required=True)
     meta = {

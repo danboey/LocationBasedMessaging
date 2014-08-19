@@ -48,13 +48,14 @@ def check_bundle_data(bundle, **kwargs):
    received field to true. date_received field is then set to current datetime.'''
 def set_update(bundle, **kwargs):
     msg_id = bundle.obj.id
-    '''when received is in request data'''
-    if bundle.data['received'] == True:
+    msg = Message.objects.get(id=msg_id)
+    if msg.pushed == False and bundle.data['pushed'] == True:
+        Message.objects.get(id=msg_id).update(set__pushed=True)
+    elif msg.pushed == True and msg.received == False and bundle.data['received'] == True:
         Message.objects.get(id=msg_id).update(set__received=True)
         Message.objects.get(id=msg_id).update(set__date_received=datetime.now())
     else:
-        Message.objects.get(id=msg_id).update(set__pushed=True)
-    return bundle
+        raise BadRequest("Invalid update")
 
     
 def get_friends(user):
@@ -68,4 +69,12 @@ def get_friends(user):
         new.save()
     else:
         Friends.objects(user_id=uid).update(set__friends=friends)
+        
+        
+'''Remove meta information from some responses'''
+def delete_meta(self, data_dict, dict):
+    if isinstance(data_dict, dict): 
+        if 'meta' in data_dict: 
+            del(data_dict['meta']) 
+        return data_dict 
         

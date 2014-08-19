@@ -103,6 +103,8 @@ SOCIAL_AUTH_FACEBOOK_SECRET = 'b03f9ab5562b287fc7fe9aa704cbc2aa'
 
 SESSION_ENGINE = 'mongoengine.django.sessions'
 
+#API_LIMIT_PER_PAGE = 0
+
 #PUSH NOTIFICATION SETTINGS
 '''PYAPNS_CONFIG = {
   'HOST': 'http://localhost:8077/',
