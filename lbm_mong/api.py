@@ -42,8 +42,8 @@ class MessageResource(resources.MongoEngineResource):
             raise BadRequest("Invalid - received/pushed fields can only be updated to 'true'")
         set_update(bundle)
             
-    '''PATCH request - to change 'received' boolean field from false to true once the user
-       actually opens the message. Only 'received' field can be updated'''        
+    '''PATCH request - to change 'received' or 'pushed' boolean fields from false to true. 
+       Only 'received' and 'pushed' fields can be updated'''        
     def update_in_place(self, request, original_bundle, new_data):
         if set(new_data.keys()) - set(self._meta.allowed_update_fields):
             raise BadRequest("Only the 'received' and 'pushed' boolean fields can be updated")
