@@ -1,4 +1,3 @@
-from rec_email import recommendation_email
 from tastypie.exceptions import BadRequest
 from bson import json_util
 import json   
@@ -28,10 +27,16 @@ def generate_random_token(sender, document, **kwargs):
     
 
 '''Allows user to send email recommending application to friends'''    
-def send_email(sender, document, **kwargs):
+'''def send_email(sender, document, **kwargs):
     from lbm_mong.models import Person
     email = document.email
     if not Person.objects(email=email):
         recommendation_email(document)
     else:
-        raise BadRequest("%s is already a registered user!") % email
+        print email
+        raise BadRequest("%s is already a registered user!"% email)'''
+        
+
+        
+        
+

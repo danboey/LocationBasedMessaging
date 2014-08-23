@@ -3,14 +3,16 @@ from tastypie_mongoengine import resources
 from tastypie.authorization import Authorization
 from tastypie.authentication import Authentication
 from customauth import CustAuthentication
+from mongoengine import *
 from mongoengine.django.auth import User
-from models import Message, Person, EmailRecommendations, Friends
+from models import Message, Person, Friends #EmailRecommendations
 from social.apps.django_app.utils import load_strategy
 from social.backends.utils import load_backends
 from tastypie.exceptions import NotRegistered, BadRequest, Unauthorized, NotFound
-from functions import check_user_id_sending, check_user_id_updating, check_receiver, get_friends, check_bundle_data, delete_meta, set_update
+from functions import check_user_id_sending, check_user_id_updating, check_receiver, get_friends, check_bundle_data, delete_meta, set_update, send_email
 import urllib2
 import json
+from bson import json_util
         
         
 class MessageResource(resources.MongoEngineResource):
@@ -61,7 +63,7 @@ class SentMessageResource(resources.MongoEngineResource):
     class Meta:
         queryset = Message.objects.all()
         resource_name = 'sent_messages'
-        fields = ['id', 'content', 'recipient_id', 'date_sent', 'received', 'date_received']
+        fields = ['id', 'content', 'recipient_id', 'date_sent', 'received', 'date_received', 'location']
         allowed_methods = ['get']
         authentication = CustAuthentication()
         authorization = Authorization()
@@ -97,7 +99,7 @@ class ReceivedMessageResource(resources.MongoEngineResource):
     class Meta:
         queryset = Message.objects.all()
         resource_name = 'received_messages'
-        fields = ['id', 'content', 'user_id', 'date_sent', 'date_received']
+        fields = ['id', 'content', 'user_id', 'date_sent', 'date_received', 'location']
         allowed_methods = ['get']
         authentication = CustAuthentication()
         authorization = Authorization()
@@ -128,8 +130,8 @@ class PullMessageResource(resources.MongoEngineResource):
       
     class Meta:
         queryset = Message.objects.all()
-        resource_name = 'pull_message'
-        fields = ['id', 'content', 'user_id', 'date_sent', 'recipient_id', 'received']
+        resource_name = 'pull_messages'
+        fields = ['id', 'content', 'user_id', 'date_sent', 'received', 'location']
         allowed_methods = ['get']
         authentication = CustAuthentication()
         authorization = Authorization()
@@ -140,6 +142,7 @@ class PullMessageResource(resources.MongoEngineResource):
         msgs = Message.objects(recipient_id=user, received=False)
         return msgs
         
+    '''PROBABLY GET RID OF THIS'''    
     def obj_get(self, bundle, request=None, **kwargs):
         user = bundle.request.GET.get('user_id')
         msg_id = kwargs['pk']
@@ -152,8 +155,8 @@ class PullMessageResource(resources.MongoEngineResource):
             raise BadRequest("Either message already received by recipient, msg ID does not exist or you are not the intended recipient for this message")
 
         
-    def alter_list_data_to_serialize(self, request, data_dict): 
-        return delete_meta(self, data_dict, dict)
+    #def alter_list_data_to_serialize(self, request, data_dict): 
+     #   return delete_meta(self, data_dict, dict)
        
                 
 
@@ -180,7 +183,7 @@ class SocialSignUpResource(resources.MongoEngineResource):
             raise BadRequest("Error [1] authenticating user with this provider")
         if user and user.is_active:
             '''Populates friends list via call to facebook API'''
-            get_friends(user, user_id)
+            get_friends(user)
             bundle.obj = user
             print "END"
             return bundle
@@ -189,25 +192,28 @@ class SocialSignUpResource(resources.MongoEngineResource):
             
     def obj_get(self, bundle, **kwargs):
         get_user = kwargs['pk']
-        user = bundle.request.GET.get('user_id')
+        user_id = bundle.request.GET.get('user_id')
         '''check that the authenticated user is accessing the correct endpoint'''
-        if get_user == user:
-            return Person.objects.get(user_id=user)
+        user = Person.objects.get(user_id=user_id)
+        if str(user.id) == str(get_user):
+            return user
         else:
             raise BadRequest("Unauthorized - wrong URI for authenticated user")
        
     def obj_get_list(self, bundle, **kwargs):
         raise BadRequest("Unauthorized - use '/api/users/{userID}' endpoint")
                        
+'''if get_user == user:
+            return Person.objects.get(user_id=user)'''  
   
 
 '''End-point for sending email recommendation to user's friends, email address must be supplied'''
-class EmailRecommendationResource(resources.MongoEngineResource):
+'''class EmailRecommendationResource(resources.MongoEngineResource):
     
     class Meta:
         queryset = EmailRecommendations.objects.all()
         allowed_methods = ['get', 'post']
-        fields = ['email', 'user_id']
+        fields = ['email']
         authentication = CustAuthentication()
         authorization = Authorization()
         resource_name = "recommend"
@@ -224,7 +230,35 @@ class EmailRecommendationResource(resources.MongoEngineResource):
         return super(EmailRecommendationResource, self).obj_create(bundle, **kwargs)
         
     def alter_list_data_to_serialize(self, request, data_dict): 
-        return delete_meta(self, data_dict, dict)
+        return delete_meta(self, data_dict, dict)'''
+        
+        
+class EmailRecommendationResource(resources.MongoEngineResource):
+    
+    class Meta:
+        queryset = Person.objects.all()
+        allowed_methods = ['get', 'post']
+        authentication = CustAuthentication()
+        authorization = Authorization()
+        fields = ['user_id', 'email_recommendations']
+        resource_name = "recommend" 
+             
+    def obj_create(self, bundle, **kwargs):
+        user_id = bundle.request.GET.get('user_id')
+        send_to = bundle.data['email']
+        send_email(user_id, send_to)
+              
+    def obj_get_list(self, bundle, **kwargs):
+        user_id = bundle.request.GET.get('user_id')
+        return Person.objects(user_id=user_id)
+             
+    def obj_get(self, bundle, **kwargs):
+        raise BadRequest("Unauthorized - you can only retreive a list of previous recommendations")
+              
+    def alter_list_data_to_serialize(self, request, data_dict): 
+        return delete_meta(self, data_dict, dict) 
+        
+
         
         
 '''Endpoint for accessing list of user's friends who are also registered to use the app'''        
@@ -249,8 +283,7 @@ class FriendsResource(resources.MongoEngineResource):
         
     def obj_get(self, bundle, **kwargs):
         raise BadRequest("Unauthorised - use '/api/friends/' endpoint")
-        
-            
+                    
     def alter_list_data_to_serialize(self, request, data_dict): 
         return delete_meta(self, data_dict, dict)
             

@@ -2,9 +2,11 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import smtplib
 
-def recommendation_email(document):
+def recommendation_email(sender, email):
+    print "IN EMAIL REC"
+    print email, sender.first_name, sender.last_name
     fromaddr = 'locationbasedmessagingapp@gmail.com'
-    toaddr = document.email
+    toaddr = email
     username = 'locationbasedmessagingapp@gmail.com'
     password = 'imperial123'
     html_msg = """\
@@ -18,7 +20,7 @@ def recommendation_email(document):
                 </p>
             </body>
         </html>
-        """%(document.first_name, document.last_name)
+        """%(sender.first_name, sender.last_name)
     part2 = MIMEText(html_msg, 'html')
     msg1 = MIMEMultipart('alternative')
     msg1['Subject'] = "Join Location Based Messaging iOS App!"
@@ -30,3 +32,6 @@ def recommendation_email(document):
     server.login(username,password)
     server.sendmail(fromaddr,toaddr,msg1.as_string())
     server.quit()
+    
+    
+    

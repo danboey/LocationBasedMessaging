@@ -1,4 +1,5 @@
 from lbm_mong.models import Person, Friends, Message
+from rec_email import recommendation_email
 from tastypie.exceptions import BadRequest
 from datetime import datetime
 import urllib2
@@ -69,6 +70,24 @@ def get_friends(user):
         new.save()
     else:
         Friends.objects(user_id=uid).update(set__friends=friends)
+        
+        
+                
+def send_email(user_id, email):
+    user = Person.objects.get(user_id=user_id)
+    email_recs = user.email_recommendations
+    print email_recs
+    if email in email_recs:
+        raise BadRequest("A recommendation has already been sent to the given email address")
+    if not Person.objects(email=email):
+        email_recs.append(email)
+        #add the email address to the email_recommendations list and update the resource
+        Person.objects.get(user_id=user_id).update(set__email_recommendations=email_recs)
+        recommendation_email(user, email)
+        return
+    else:
+        raise BadRequest("%s is already a registered user!"% email)         
+
         
         
 '''Remove meta information from some responses'''

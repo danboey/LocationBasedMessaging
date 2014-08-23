@@ -2,7 +2,7 @@ from datetime import datetime
 from mongoengine.django.auth import User
 from mongoengine import *
 from mongoengine import signals
-from signals import send_push, generate_random_token, send_email
+from signals import send_push, generate_random_token#, send_email
 
 class Message(Document):
     user_id = StringField(required=True)
@@ -23,14 +23,15 @@ class Message(Document):
     def save(self, *args, **kwargs):
         return super(Message, self).save(*args, **kwargs)
 
-signals.post_save.connect(send_push, sender=Message)
+#signals.post_save.connect(send_push, sender=Message)
 
 '''Extends mongoengine.django.auth User model to include API key, access token, email and facebook uid fields'''
 class Person(User):
     api_key = StringField(default='')
-    access_token = StringField(default='') #new
+    access_token = StringField(default='')
     email = EmailField(unique=True)
     user_id = StringField(default='')
+    email_recommendations = ListField(default=[]) #new
     meta = {
         'indexes': ['user_id']
     }
@@ -39,7 +40,7 @@ signals.pre_save.connect(generate_random_token, sender=Person)
 
 
 
-class EmailRecommendations(Document):
+'''class EmailRecommendations(EmbeddedDocument):
     email = EmailField(required=True)
     user_id = StringField(required=True)
     meta = {
@@ -50,9 +51,9 @@ class EmailRecommendations(Document):
         return self.user_id
 
     def save(self, *args, **kwargs):
-        return super(EmailRecommendations, self).save(*args, **kwargs)
+        return super(EmailRecommendations, self).save(*args, **kwargs)'''
 
-signals.post_save.connect(send_email, sender=EmailRecommendations)
+#signals.post_save.connect(send_email, sender=EmailRecommendations)
 
 class Friends(Document):
     user_id = StringField(default='')
