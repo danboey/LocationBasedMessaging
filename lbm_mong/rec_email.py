@@ -3,8 +3,6 @@ from email.mime.text import MIMEText
 import smtplib
 
 def recommendation_email(sender, email):
-    print "IN EMAIL REC"
-    print email, sender.first_name, sender.last_name
     fromaddr = 'locationbasedmessagingapp@gmail.com'
     toaddr = email
     username = 'locationbasedmessagingapp@gmail.com'
@@ -16,7 +14,7 @@ def recommendation_email(sender, email):
                 <p>Hello!</p>
                 <p>%s %s has recommened you try the Location Based Messaging iOS App!<br>
                    Click on the link below to get started</p>
-                <a href="www.google.com">Location Based Messaging</a>
+                <a href=#>Location Based Messaging</a>
                 </p>
             </body>
         </html>
@@ -27,6 +25,7 @@ def recommendation_email(sender, email):
     msg1['From'] = fromaddr
     msg1['To'] = toaddr
     msg1.attach(part2)
+    '''create smtplib obj to send email'''
     server = smtplib.SMTP('smtp.gmail.com:587')
     server.starttls()
     server.login(username,password)

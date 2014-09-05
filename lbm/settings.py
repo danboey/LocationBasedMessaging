@@ -60,7 +60,7 @@ AUTHENTICATION_BACKENDS = (
    'social.backends.facebook.FacebookOAuth2',
    'django.contrib.auth.backends.ModelBackend',
    'mongoengine.django.auth.MongoEngineBackend',
-   'lbm_mong.back.PersonAuthBackend',
+   'lbm_mong.back.MyUserAuthBackend',
 )
 
 SOCIAL_AUTH_PIPELINE = (
@@ -73,7 +73,7 @@ SOCIAL_AUTH_PIPELINE = (
     'social.pipeline.social_auth.associate_user',
     'social.pipeline.social_auth.load_extra_data',
     'social.pipeline.user.user_details',
-    'lbm_mong.mypipeline.test'
+    'lbm_mong.mypipeline.my_pipeline'
 )
 
 SOCIAL_AUTH_FACEBOOK_SCOPE = [
@@ -81,7 +81,7 @@ SOCIAL_AUTH_FACEBOOK_SCOPE = [
     'user_friends',
 ]
 
-SOCIAL_AUTH_USER_MODEL = 'lbm_mong.models.Person'
+SOCIAL_AUTH_USER_MODEL = 'lbm_mong.models.MyUser'
 
 SOCIAL_AUTH_FACEBOOK_KEY = '302871443207881'
 
@@ -89,9 +89,8 @@ SOCIAL_AUTH_FACEBOOK_SECRET = 'b03f9ab5562b287fc7fe9aa704cbc2aa'
 
 SESSION_ENGINE = 'mongoengine.django.sessions'
 
-#API_LIMIT_PER_PAGE = 0
 
-#PUSH NOTIFICATION SETTINGS
+'''PUSH NOTIFICATION SETTINGS'''
 '''PYAPNS_CONFIG = {
   'HOST': 'http://localhost:8077/',
   'TIMEOUT': 10,
@@ -100,7 +99,7 @@ SESSION_ENGINE = 'mongoengine.django.sessions'
   ]
 }'''
 
-MONGO_DATABASE_NAME = 'lbm_mongo_keyXXX'
+MONGO_DATABASE_NAME = 'lbm_mongo_key_again'
 
 from mongoengine import connect
 connect(MONGO_DATABASE_NAME)

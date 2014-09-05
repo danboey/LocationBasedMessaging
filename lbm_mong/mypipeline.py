@@ -1,7 +1,8 @@
-from lbm_mong.models import Person
+from lbm_mong.models import MyUser
 
-def test(backend, user, response, *args, **kwargs):
+'''Custom pipeline to add email and facebook uid to user model during registration/facebook auth process'''
+def my_pipeline(backend, user, response, *args, **kwargs):
     email = kwargs['details']['email']
     uid = kwargs['uid']
-    Person.objects(email=email).update(set__user_id=uid)
+    MyUser.objects(email=email).update(set__user_id=uid)
 

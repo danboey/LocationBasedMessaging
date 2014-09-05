@@ -5,7 +5,7 @@ from tastypie.authentication import Authentication
 from customauth import CustAuthentication
 from mongoengine import *
 from mongoengine.django.auth import User
-from models import Message, Person, Friends #EmailRecommendations
+from models import Message, MyUser, Friends
 from social.apps.django_app.utils import load_strategy
 from social.backends.utils import load_backends
 from tastypie.exceptions import NotRegistered, BadRequest, Unauthorized, NotFound
@@ -14,19 +14,23 @@ import urllib2
 import json
 from bson import json_util
         
+'''Tastypie Resources - defining the API'''
         
+'''Resource for sending messages'''                
 class MessageResource(resources.MongoEngineResource):
         
     class Meta:
         queryset = Message.objects.all()
         resource_name = 'messages'
-        fields = ['id', 'user_id', 'content', 'recipient_id', 'date_sent', 'received', 'date_received', 'pushed', 'location']
+        fields = ['id', 'user_id', 'content', 'recipient_id', 'date_sent', 'received', 'date_received', 'location']
         allowed_methods = ['post', 'patch']
         authentication = CustAuthentication()
         authorization = Authorization()
-        always_return_data = True
         allowed_update_fields = ['received', 'pushed']
+        always_return_data = True
     
+    '''Called when POSTing new msg. Checks sent data then checks receiver exists and is on
+       user's friends list before creating new Message object'''
     def obj_create(self, bundle, **kwargs):
         check_bundle_data(bundle)
         if not check_receiver(bundle):
@@ -34,22 +38,23 @@ class MessageResource(resources.MongoEngineResource):
         if not check_user_id_sending(bundle):
             raise BadRequest("Unauthorised - 'user_id' in payload incorrect")
         return super(MessageResource, self).obj_create(bundle, **kwargs)
-        
-    def obj_update(self, bundle, request = None, **kwargs):
-        #check that requesting user is the recipient of the message
-        if not check_user_id_updating(bundle, **kwargs):
-            raise BadRequest("Unauthorised")
-        #check that update values are valid
-        if bundle.data['received'] != True and bundle.data['pushed'] != True:
-            raise BadRequest("Invalid - received/pushed fields can only be updated to 'true'")
-        set_update(bundle)
-            
-    '''PATCH request - to change 'received' or 'pushed' boolean fields from false to true. 
-       Only 'received' and 'pushed' fields can be updated'''        
+                      
+    '''PATCH request - checks that only received or pushed fields being updated.
+       super() eventually calls obj_update (overridden below)'''        
     def update_in_place(self, request, original_bundle, new_data):
         if set(new_data.keys()) - set(self._meta.allowed_update_fields):
             raise BadRequest("Only the 'received' and 'pushed' boolean fields can be updated")
-        return super(MessageResource, self).update_in_place(request, original_bundle, new_data)  
+        return super(MessageResource, self).update_in_place(request, original_bundle, new_data)
+         
+    '''Called by update_in_place - overridden to check authorizations before updating object'''
+    def obj_update(self, bundle, request = None, **kwargs):
+        '''check that requesting user is the recipient of the message'''
+        if not check_user_id_updating(bundle, **kwargs):
+            raise BadRequest("Unauthorised")
+        '''check that update values in payload are valid (only allow updating to true)'''
+        if bundle.data['received'] != True and bundle.data['pushed'] != True:
+            raise BadRequest("Invalid - received/pushed fields can only be updated to 'true'")
+        set_update(bundle)  
         
     '''Exclude 'meta' information in response'''    
     def alter_list_data_to_serialize(self, request, data_dict): 
@@ -57,7 +62,7 @@ class MessageResource(resources.MongoEngineResource):
         
                 
                 
-                
+'''Resource for accessing sent messages'''                        
 class SentMessageResource(resources.MongoEngineResource):
         
     class Meta:
@@ -68,32 +73,25 @@ class SentMessageResource(resources.MongoEngineResource):
         authentication = CustAuthentication()
         authorization = Authorization()
         always_return_data = True
-        #max_limit = None       
+        max_limit = 50      
 
+    '''Depending on URL params, user can GET list of all sent msgs or only msgs 
+       that have either been/not been received'''
     def obj_get_list(self, bundle, **kwargs):
-        '''Depending on URL params, user can GET list of all sent msgs or only msgs 
-           that have either been/not been received'''
-        user = bundle.request.GET.get('user_id')
-        if bundle.request.GET.get('received') == "true":
-            msgs = Message.objects(user_id=user, received=True)
-        elif bundle.request.GET.get('received') == "false":
-            msgs = Message.objects(user_id=user, received=False)
+        user = bundle.request.GET.get('user_id') #extracts user_id from URL params
+        if bundle.request.GET.get('received'):
+            received = False if bundle.request.GET.get('received') == "false" else True
+            return Message.objects(user_id=user, received=received)
         else:
-            msgs = Message.objects(user_id=user)
-        return msgs
-        
+            return Message.objects(user_id=user)
+    
+    '''Returns single sent message'''    
     def obj_get(self, bundle, request=None, **kwargs):
-        msg_id = kwargs['pk']
-        user = bundle.request.GET.get('user_id')
-        msg = self.get_object_list(request).filter(id=msg_id, user_id=user)
-        try:
-            if len(msg) == 0:
-                pass
-            return msg[0]
-        except:
-            raise BadRequest("The message does not exist")
-        
-        
+        return super(SentMessageResource, self).obj_get(bundle, **kwargs)
+
+
+
+'''Resource for accessing received messages'''                
 class ReceivedMessageResource(resources.MongoEngineResource):
         
     class Meta:
@@ -105,27 +103,23 @@ class ReceivedMessageResource(resources.MongoEngineResource):
         authorization = Authorization()
         always_return_data = True       
 
+    '''Only returns msgs that have actually been received by the user (as opposed to
+       msgs sent to the client app, ie. msgs stored locally but not yet seen by user)'''
     def obj_get_list(self, bundle, **kwargs):
-        '''Only returns msgs that have actually been received by the user (as opposed to
-           msgs sent to the client app, ie. msgs stored locally but not yet seen by user)'''
         user = bundle.request.GET.get('user_id')
-        msgs = Message.objects(recipient_id=user, received=True)
-        return msgs
+        return Message.objects(recipient_id=user, received=True)
         
     def obj_get(self, bundle, request=None, **kwargs):
-        msg_id = kwargs['pk']
+        msg_id = kwargs['pk'] #extracts Message object ID from URI
         user = bundle.request.GET.get('user_id')
-        msg = self.get_object_list(request).filter(id=msg_id, recipient_id=user, received=True)
         try:
-            if len(msg) == 0:
-                pass
-            return msg[0]
+            return Message.objects.get(id=msg_id, recipient_id=user, received=True)
         except:
-            raise BadRequest("The message does not exist or has not yet been received by the user")
+            raise BadRequest
              
         
         
-'''When a push notification is received the client app should use this end-point to GET the msg'''          
+'''Resource for retrieving new messages in response to push notifications'''          
 class PullMessageResource(resources.MongoEngineResource):
       
     class Meta:
@@ -137,39 +131,27 @@ class PullMessageResource(resources.MongoEngineResource):
         authorization = Authorization()
         always_return_data = True       
 
+    '''Returns list of all new messages - ie. where pushed=false'''
     def obj_get_list(self, bundle, **kwargs):
         user = bundle.request.GET.get('user_id')
-        msgs = Message.objects(recipient_id=user, received=False)
-        return msgs
-        
-    '''PROBABLY GET RID OF THIS'''    
+        return Message.objects(recipient_id=user, pushed=False)
+  
     def obj_get(self, bundle, request=None, **kwargs):
-        user = bundle.request.GET.get('user_id')
-        msg_id = kwargs['pk']
-        msg = self.get_object_list(request).filter(id=msg_id, recipient_id=user, received=False)
-        try:
-            if len(msg) == 0:
-                pass
-            return msg[0]
-        except:
-            raise BadRequest("Either message already received by recipient, msg ID does not exist or you are not the intended recipient for this message")
-
-        
-    #def alter_list_data_to_serialize(self, request, data_dict): 
-     #   return delete_meta(self, data_dict, dict)
+        raise BadRequest("Unauthorised - use /api/messages/pull_message/ to retrieve list of all new messages")
        
                 
 
-'''Authenticate users via facebook using python-social-auth'''
+'''Resource for authenticating new users via facebook using python-social-auth'''
 class SocialSignUpResource(resources.MongoEngineResource):
     
     class Meta:
-        queryset = Person.objects.all()
-        allowed_methods = ['post', 'get']
+        queryset = MyUser.objects.all()
+        allowed_methods = ['post', 'get', 'patch']
         authentication = Authentication()
         authorization = Authorization()
         resource_name = "users"
-        fields = ['id', 'username', 'api_key']
+        fields = ['id', 'username', 'api_key', 'user_id', 'access_token', 'first_name', 'last_name', 'date_joined', 'last_login', 'email', 'apns_token']
+        allowed_update_fields = ['apns_token']
         always_return_data = True
 
     def obj_create(self, bundle, request=None, **kwargs):
@@ -178,70 +160,61 @@ class SocialSignUpResource(resources.MongoEngineResource):
         try:
             user = strategy.backend.do_auth(access_token)
             user_id = user['id']
-            Person.objects(id=user_id).update(set__access_token=access_token)
+            MyUser.objects(id=user_id).update(set__access_token=access_token)
         except:
             raise BadRequest("Error [1] authenticating user with this provider")
         if user and user.is_active:
             '''Populates friends list via call to facebook API'''
             get_friends(user)
             bundle.obj = user
-            print "END"
+            rtn_data = MyUser.objects.get(id=user_id)
+            bundle.obj.user_id, bundle.obj.access_token = rtn_data.user_id, rtn_data.access_token
             return bundle
         else:
             raise BadRequest("Error [2] authenticating user with this provider")
             
+    '''Since Authentication() is used in this class (which doesn't check any credentials - necessary for obj_create 
+        method), proper authentication and authorization needs to be checked before returning MyUser object'''        
     def obj_get(self, bundle, **kwargs):
         get_user = kwargs['pk']
         user_id = bundle.request.GET.get('user_id')
-        '''check that the authenticated user is accessing the correct endpoint'''
-        user = Person.objects.get(user_id=user_id)
-        if str(user.id) == str(get_user):
-            return user
-        else:
-            raise BadRequest("Unauthorized - wrong URI for authenticated user")
+        api_key = bundle.request.GET.get('api_key')
+        '''authenticates and checks that the user is accessing the correct endpoint'''
+        try:
+            user = MyUser.objects.get(user_id=user_id, api_key=api_key)
+            if str(user.id) == str(get_user):
+                return user
+            else:
+                raise BadRequest("User does not exist/wrong auth credentials")
+        except:
+            raise BadRequest("User does not exist/wrong auth credentials")
        
     def obj_get_list(self, bundle, **kwargs):
-        raise BadRequest("Unauthorized - use '/api/users/{userID}' endpoint")
-                       
-'''if get_user == user:
-            return Person.objects.get(user_id=user)'''  
-  
-
-'''End-point for sending email recommendation to user's friends, email address must be supplied'''
-'''class EmailRecommendationResource(resources.MongoEngineResource):
-    
-    class Meta:
-        queryset = EmailRecommendations.objects.all()
-        allowed_methods = ['get', 'post']
-        fields = ['email']
-        authentication = CustAuthentication()
-        authorization = Authorization()
-        resource_name = "recommend"
-        
-    def obj_get_list(self, bundle, **kwargs):
-        user = bundle.request.GET.get('user_id')
-        sent_list = EmailRecommendations.objects(user_id=user)
-        return sent_list
-        
-    def obj_get(self, bundle, **kwargs):
-        raise BadRequest("Unauthorized - you can only retreive a list of previous recommendations")
-        
-    def obj_create(self, bundle, **kwargs):
-        return super(EmailRecommendationResource, self).obj_create(bundle, **kwargs)
+        user_id = bundle.request.GET.get('user_id')
+        api_key = bundle.request.GET.get('api_key')
+        user = MyUser.objects(user_id=user_id, api_key=api_key)
+        return user    
+                
+    def update_in_place(self, request, original_bundle, new_data):
+        if set(new_data.keys()) - set(self._meta.allowed_update_fields):
+            raise BadRequest("Update apns_token field only")
+        return super(SocialSignUpResource, self).update_in_place(request, original_bundle, new_data)
         
     def alter_list_data_to_serialize(self, request, data_dict): 
-        return delete_meta(self, data_dict, dict)'''
+        return delete_meta(self, data_dict, dict) 
+           
+                        
         
-        
+'''Resource for sending email recommendation to non-users'''                
 class EmailRecommendationResource(resources.MongoEngineResource):
     
     class Meta:
-        queryset = Person.objects.all()
+        queryset = MyUser.objects.all()
         allowed_methods = ['get', 'post']
         authentication = CustAuthentication()
         authorization = Authorization()
         fields = ['user_id', 'email_recommendations']
-        resource_name = "recommend" 
+        resource_name = "email_recommendations" 
              
     def obj_create(self, bundle, **kwargs):
         user_id = bundle.request.GET.get('user_id')
@@ -250,7 +223,7 @@ class EmailRecommendationResource(resources.MongoEngineResource):
               
     def obj_get_list(self, bundle, **kwargs):
         user_id = bundle.request.GET.get('user_id')
-        return Person.objects(user_id=user_id)
+        return MyUser.objects(user_id=user_id)
              
     def obj_get(self, bundle, **kwargs):
         raise BadRequest("Unauthorized - you can only retreive a list of previous recommendations")
@@ -261,7 +234,7 @@ class EmailRecommendationResource(resources.MongoEngineResource):
 
         
         
-'''Endpoint for accessing list of user's friends who are also registered to use the app'''        
+'''Resource for accessing list of user's friends who are also registered to use the app'''        
 class FriendsResource(resources.MongoEngineResource):
 
     class Meta:
@@ -275,14 +248,14 @@ class FriendsResource(resources.MongoEngineResource):
         
     def obj_get_list(self, bundle, **kwargs):
         user_id = bundle.request.GET.get('user_id')
-        user = Person.objects.get(user_id=user_id)
+        user = MyUser.objects.get(user_id=user_id)
         username = user.username
         '''update friends list first'''
         get_friends(username)
         return Friends.objects(user_id=user_id)
         
     def obj_get(self, bundle, **kwargs):
-        raise BadRequest("Unauthorised - use '/api/friends/' endpoint")
+        return super(FriendsResource, self).obj_get(bundle, **kwargs)
                     
     def alter_list_data_to_serialize(self, request, data_dict): 
         return delete_meta(self, data_dict, dict)
